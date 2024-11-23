@@ -90,6 +90,7 @@ if __name__ == 'main':
 
     
     # --------- Load the model --------- #
-    # cfg.get(key, deault_value): No need to write in the config if not used.
-    # cfg[key]: Must be assigned in the config, else KeyError.
     model = model_arch(**cfg['MODEL_PARAM']).to(DEVICE)
+
+
+    # --------- Make log file --------- #
