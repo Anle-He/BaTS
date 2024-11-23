@@ -3,6 +3,7 @@ import sys
 import yaml
 import random
 import argparse
+import datetime
 import numpy as np
 
 import torch
@@ -86,3 +87,9 @@ if __name__ == 'main':
     cfg_path = args.cfg_path
     with open(cfg_path, 'r') as f:
         cfg = yaml.safe_load(f)
+
+    
+    # --------- Load the model --------- #
+    # cfg.get(key, deault_value): No need to write in the config if not used.
+    # cfg[key]: Must be assigned in the config, else KeyError.
+    model = model_arch(**cfg['MODEL_PARAM']).to(DEVICE)
