@@ -94,3 +94,11 @@ if __name__ == 'main':
 
 
     # --------- Make log file --------- #
+    log_time = datetime.datatime.now().strftime('%Y-%m-%d-%H-%M-%S')
+    log_path = f'../logs/{model_name}'
+    if not os.path.exists(log_path):
+        os.makedirs(log_path)
+    log = os.path.join(log_path, f'{model_name}-{task_name}-{dataset_name}-{log_time}.log')
+    log = open(log, 'a')
+    log.seek(0)
+    log.truncate()
