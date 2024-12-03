@@ -103,15 +103,19 @@ class SDMamba(nn.Module):
         if self.use_revin:
             x_in = self.revin(x_in, mode='norm')
 
-        x_emb = self.NodeEmbed(x_in) # (B, T, N) -> (B, N, d_model) 
+        # (batch_size, history_seq_len, num_nodes) -> (batch_size, num_nodes, d_model) 
+        x_emb = self.NodeEmbed(x_in) 
 
-        enc_out = self.Encoder(x_emb) # (B, N, d_model) -> (B, N, d_model)
+        # (batch_size, num_nodes, d_model) -> (batch_size, num_nodes, d_model)
+        enc_out = self.Encoder(x_emb) 
 
-        dec_out = self.Projector(enc_out).permute(0, 2, 1) # (B, N, d_model) -> (B, T, N)
+        # (batch_size, num_nodes, d_model) -> (batch_size, futue_seq_len, num_nodes)
+        dec_out = self.Projector(enc_out).permute(0, 2, 1) 
 
         if self.use_revin:
             dec_out = self.revin(dec_out, mode='denorm')
 
+        # (batch_size, futue_seq_len, num_nodes) -> (batch_size, futue_seq_len, num_nodes, 1)
         prediction = dec_out.unsqueeze(-1)
 
         return prediction
