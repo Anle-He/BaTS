@@ -11,10 +11,10 @@ from .MambaEnc import Encoder, EncoderLayer
 class SDMamba(nn.Module):
     """
     Paper:
-        - 
-        - 
+        - Is Mamba Effective for Time Series Forecasting?
+        - arXiv:2403.11144
     Official Code:
-        -
+        -https://github.com/wzhwzhwzh0921/S-D-Mamba
     Other Implementations can be found at:
         - 
     """
