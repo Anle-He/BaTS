@@ -1,1 +1,1 @@
-BasicTraffic is a deep learning library and toolkit designedfor traffic prediction.
+BasicTraffic is a deep learning library and toolkit designed for traffic prediction.
