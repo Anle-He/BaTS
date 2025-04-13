@@ -1,9 +1,9 @@
-from .SDMamba import SDMamba
+from .CycleNet import CycleNet
 
 
 def select_model(name):
     model_dict = {
-        'SDMamba': SDMamba
+        'SDMamba': CycleNet
     }
 
     return model_dict[name]
