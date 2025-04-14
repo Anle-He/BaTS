@@ -8,26 +8,31 @@ import torch
 import torch.nn as nn
 from torchinfo import summary
 
-import warnings
-warnings.filterwarnings('ignore')
-
 from .BaseRunner import BaseRunner
 
 sys.path.append('..')
 from lib.utils import print_log
-from lib.metrics import MSE_MAE
+from lib.metrics import RMSE_MAE_MAPE
 
 
-class LTSFRunner(BaseRunner):
+class STFRunner(BaseRunner):
     def __init__(self, cfg:dict, device, scaler, log=None):
         super().__init__()
 
         self.cfg = cfg
         self.device = device
-        self.scaler =scaler
+        self.scaler = scaler
         self.log = log
 
+        if self.cfg['OPTIM'].get('use_cl'):
+            if 'cl_step_size' not in self.cfg['OPTIM']:
+                raise KeyError('Missing config: cl_step_size (int)')
+            if 'out_steps' not in self.cfg['DATA']:
+                raise KeyError('Missing config: out_steps (int)')
+            self.iter_count = 0
+            self.target_length = 0
 
+    
     def train_one_epoch(self, model, train_loader, optimizer, scheduler, criterion):
 
         model.train()
@@ -38,8 +43,25 @@ class LTSFRunner(BaseRunner):
             y_batch = y_batch.to(self.device)
 
             out_batch = model(x_batch)
+            out_batch = self.scaler.inverse_transform(out_batch)
 
-            loss = criterion(out_batch, y_batch)
+            if self.cfg['OPTIM'].get('use_cl'):
+                if (
+                    self.iter_count % self.cfg['OPTIM'].get('cl_step_size') == 0
+                    and self.target_length < self.cfg['DATA'].get('out_steps')
+                ):
+                    self.target_length += 1
+                    print_log(f'CL target length = {self.target_length}', log=self.log)
+                
+                loss = criterion(
+                    out_batch[:, : self.target_length, ...],
+                    y_batch[:, : self.target_length, ...]
+                )
+                self.iter_count += 1
+            else:
+                loss = criterion(out_batch, y_batch)
+
+            # TODO: enable visualization for loss
             batch_loss_list.append(loss.item())
 
             optimizer.zero_grad()
@@ -52,7 +74,7 @@ class LTSFRunner(BaseRunner):
         scheduler.step()
 
         return epoch_loss
-    
+
 
     @torch.no_grad()
     def eval_model(self, model, val_loader, criterion):
@@ -66,11 +88,12 @@ class LTSFRunner(BaseRunner):
             y_batch = y_batch.float().to(self.device)
 
             out_batch = model(x_batch)
+            out_batch = self.scaler.inverse_transform(out_batch)
 
             loss = criterion(out_batch.detach().cpu(), y_batch.detach().cpu())
-            batch_loss_list.append(loss.item())
+            batch_loss_list.append(loss.item())            
 
-        return np.mean(batch_loss_list)
+        return np.mean(batch_loss_list)      
 
 
     @torch.no_grad()
@@ -87,18 +110,20 @@ class LTSFRunner(BaseRunner):
             y_batch = y_batch.float().to(self.device)
 
             out_batch = model(x_batch)
-            
+            out_batch = self.scaler.inverse_transform(out_batch)   
+
             out_batch = out_batch.cpu().numpy()
             y_batch = y_batch.cpu().numpy()
 
             out.append(out_batch)
-            y.append(y_batch)            
+            y.append(y_batch)  
 
         # (samples, out_steps, num_nodes, output_dim)
         out = np.vstack(out)  
         y = np.vstack(y)
 
         return y, out
+    
 
     def train(
         self,
@@ -108,8 +133,8 @@ class LTSFRunner(BaseRunner):
         optimizer,
         scheduler,
         criterion,
-        max_epochs=10,
-        early_stop_patience=3,
+        max_epochs=200,
+        early_stop_patience=10,
         compile_model=False,
         verbose=1,
         save=None):
@@ -152,33 +177,35 @@ class LTSFRunner(BaseRunner):
                 wait += 1
                 if wait >= early_stop_patience:
                     break    
-        end = time.time()   
+        end = time.time()  
 
         model.load_state_dict(best_state_dict)
 
         if save:
             torch.save(best_state_dict, save)  
 
-        train_mse, train_mae = MSE_MAE(*self.predict(model, train_loader))
-        val_mse, val_mae= MSE_MAE(*self.predict(model, val_loader))
+        train_rmse, train_mae, train_mape = RMSE_MAE_MAPE(*self.predict(model, train_loader))
+        val_rmse, val_mae, val_mape = RMSE_MAE_MAPE(*self.predict(model, val_loader))
 
         out_str = f'Finish at epoch: {epoch+1}\n'
         out_str += f'Best model at epoch {best_epoch+1}:\n'
         out_str += "Train Loss = %.5f\n" % train_loss_list[best_epoch]
-        out_str += "Train MSE = %.5f, MAE = %.5f\n" % (
-            train_mse,
+        out_str += "Train MAE = %.5f, RMSE = %.5f, MAPE = %.5f\n" % (
             train_mae,
+            train_rmse,
+            train_mape
         )
         out_str += "Val Loss = %.5f\n" % val_loss_list[best_epoch]
-        out_str += "Val MSE = %.5f, MAE = %.5f" % (
-            val_mse,
+        out_str += "Val MAE = %.5f, RMSE = %.5f, MAPE = %.5f" % (
             val_mae,
+            val_rmse,
+            val_mape
         )
         print_log(out_str, log=self.log)
         print_log("Traing time per epoch: %.3f s" % ((end - start)/epoch), log=self.log)
 
         return model
-
+    
 
     @torch.no_grad()
     def test_model(self, model, test_loader):
@@ -193,15 +220,25 @@ class LTSFRunner(BaseRunner):
 
         out_steps = y_pred.shape[1]
 
-        mse_all, mae_all = MSE_MAE(y_true, y_pred)
-        out_str = "All Steps (1-%d) MSE = %.5f, MAE = %.5f\n" % (
+        rmse_all, mae_all, mape_all = RMSE_MAE_MAPE(y_true, y_pred)
+        out_str = 'All Steps (1-%d) MAE = %.5f, RMSE = %.5f, MAPE = %.5f\n' % (
             out_steps,
-            mse_all,
             mae_all,
+            rmse_all,
+            mape_all,
         )
 
+        for i in range(out_steps):
+            rmse, mae, mape = RMSE_MAE_MAPE(y_true[:, i, :], y_pred[:, i, :])
+            out_str += 'Step %d MAE = %.5f, RMSE = %.5f, MAPE = %.5f\n' % (
+                i + 1,
+                mae,
+                rmse,
+                mape,
+            )
+
         print_log(out_str, log=self.log, end='')
-        print_log("Inference time: %.3f s" % (end - start), log=self.log)
+        print_log('Inference time: %.2f s' % (end - start), log=self.log)
 
 
     def model_summary(self, model, dataloader):
@@ -211,6 +248,6 @@ class LTSFRunner(BaseRunner):
         return summary(
             model,
             x_shape,
-            verbose=0,  # avoid print twice
+            verbose=0, # avoid print twice
             device=self.device
         )
