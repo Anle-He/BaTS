@@ -1,16 +1,14 @@
-#from .STFRunner import STFRunner
+from .STFRunner import STFRunner
 from .LTSFRunner import LTSFRunner
 
-#__all__ = ['BaseRunner', 'STFRunner', 'LTSFRunner']
-__all__ = ['BaseRunner', 'LTSFRunner']
+__all__ = ['BaseRunner', 'STFRunner', 'LTSFRunner']
 
 
-def select_runner(name):
+def select_runner(runner:str):
 
-    # TODO: Implement STFRunner.
-    if name == 'LTSFRunner':
+    if runner == 'STFRunner':
+        return STFRunner
+    elif runner == 'LTSFRunner':
         return LTSFRunner
-    #elif name == 'STFRunner':
-    #    return STFRunner        
     else:
         raise NotImplementedError()

@@ -1,74 +1,17 @@
 import numpy as np
-
-import torch
 import torch.nn as nn
 
 
-def select_loss(loss_name: str):
+def select_loss(loss: str):
 
-    if loss_name.upper() == 'MAE':
-        return MaskedMAELoss
-    elif loss_name.upper() == 'MSE':
+    if loss.upper() == 'MAE':
+        return nn.L1Loss
+    elif loss.upper() == 'MSE':
         return nn.MSELoss
-    # TODO: Support additional loss function.
+    elif loss.upper() == 'HUBER':
+        return nn.HuberLoss
     else: 
-        raise ValueError(f'Invalid loss: {loss_name}')
-    
-
-def MaskedMAELoss():
-
-    def _get_name(self):
-        return self.__class__.__name__
-    
-
-    def __call__(self, preds, labels, null_val=np.nan):
-        return masked_mae(preds, labels, null_val)
-    
-
-def masked_mae(preds, labels, null_val):
-
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else: 
-        mask = (labels != null_val)
-
-    mask = mask.float()
-    mask /= torch.mean((mask))
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-
-    loss = torch.abs(preds-labels)
-    loss = loss * mask
-    loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
-
-    return torch.mean(loss)
-
-
-def MaskedMSELoss():
-
-    def _get_name(self):
-        return self.__class__.__name__
-    
-
-    def __call__(self, preds, labels, null_val=np.nan):
-        return masked_mse(preds, labels, null_val)
-    
-
-def masked_mse(preds, labels, null_val):
-
-    if np.isnan(null_val):
-        mask = ~torch.isnan(labels)
-    else:
-        mask = (labels!=null_val)
-
-    mask = mask.float()
-    mask /= torch.mean((mask))
-    mask = torch.where(torch.isnan(mask), torch.zeros_like(mask), mask)
-    
-    loss = (preds-labels)**2
-    loss = loss * mask
-    loss = torch.where(torch.isnan(loss), torch.zeros_like(loss), loss)
-    
-    return torch.mean(loss)
+        raise ValueError(f'Invalid loss: {loss}')
 
 
 def MSE_MAE(y_true, y_pred):
@@ -90,7 +33,7 @@ def RMSE_MAE_MAPE(y_true, y_pred):
 
 def MSE(y_true, y_pred):
 
-    with np.errstate(divide="ignore", invalid="ignore"):
+    with np.errstate(divide='ignore', invalid='ignore'):
 
         mask = np.not_equal(y_true, 0)
         mask = mask.astype(np.float32)
@@ -105,7 +48,7 @@ def MSE(y_true, y_pred):
 
 def MAE(y_true, y_pred):
 
-    with np.errstate(divide="ignore", invalid="ignore"):
+    with np.errstate(divide='ignore', invalid='ignore'):
 
         mask = np.not_equal(y_true, 0)
         mask = mask.astype(np.float32)
@@ -120,7 +63,7 @@ def MAE(y_true, y_pred):
 
 def RMSE(y_true, y_pred):
 
-    with np.errstate(divide="ignore", invalid="ignore"):
+    with np.errstate(divide='ignore', invalid='ignore'):
 
         mask = np.not_equal(y_true, 0)
         mask = mask.astype(np.float32)
@@ -135,17 +78,17 @@ def RMSE(y_true, y_pred):
 
 def MAPE(y_true, y_pred, null_val=0):
 
-    with np.errstate(divide="ignore", invalid="ignore"):
+    with np.errstate(divide='ignore', invalid='ignore'):
 
         if np.isnan(null_val):
             mask = ~np.isnan(y_true)
         else:
             mask = np.not_equal(y_true, null_val)
 
-        mask = mask.astype("float32")
+        mask = mask.astype('float32')
         mask /= np.mean(mask)
 
-        mape = np.abs(np.divide((y_pred - y_true).astype("float32"), y_true))
+        mape = np.abs(np.divide((y_pred - y_true).astype('float32'), y_true))
         mape = np.nan_to_num(mask * mape)
 
         return np.mean(mape) * 100

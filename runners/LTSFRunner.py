@@ -8,9 +8,6 @@ import torch
 import torch.nn as nn
 from torchinfo import summary
 
-import warnings
-warnings.filterwarnings('ignore')
-
 from .BaseRunner import BaseRunner
 
 sys.path.append('..')
@@ -26,6 +23,8 @@ class LTSFRunner(BaseRunner):
         self.device = device
         self.scaler =scaler
         self.log = log
+
+        self.clip_grad = self.cfg['OPTIM'].get('clip_grad')
 
 
     def train_one_epoch(self, model, train_loader, optimizer, scheduler, criterion):
@@ -45,7 +44,7 @@ class LTSFRunner(BaseRunner):
             optimizer.zero_grad()
             loss.backward()
             if self.clip_grad:
-                nn.utils.clip_grad_norm_(model.parameters(), self.cfg['OPTIM'].get('clip_grad'))
+                nn.utils.clip_grad_norm_(model.parameters(), self.clip_grad)
             optimizer.step()
 
         epoch_loss = np.mean(batch_loss_list)
@@ -197,7 +196,7 @@ class LTSFRunner(BaseRunner):
         out_str = "All Steps (1-%d) MSE = %.5f, MAE = %.5f\n" % (
             out_steps,
             mse_all,
-            mae_all,
+            mae_all
         )
 
         print_log(out_str, log=self.log, end='')

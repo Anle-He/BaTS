@@ -22,24 +22,6 @@ from data.get_dataloader import select_dataloader
 if __name__ == 'main':
 
     # --------- Set running env --------- #
-    # TODO: Support adjust the randowm seed in scripts.
-    fix_seed = 2024
-    seed_everything(fix_seed)
-
-    # Limit the number of cpu threads
-    # TODO: Adjust cpu_num for long-range sequence.
-    #cpu_num = 3
-    #torch.set_num_threads(cpu_num) 
-    #os.environ['OMP_NUM_THREADS'] = str(cpu_num)
-    #os.environ['OPENBLAS_NUM_THREADS'] = str(cpu_num)
-    #os.environ['MKL_NUM_THREADS'] = str(cpu_num)
-    #os.environ['VECLIB_MAXIMUM_THREADS'] = str(cpu_num)
-    #os.environ['NUMEXPR_NUM_THREADS'] = str(cpu_num)   
-
-    # Set device
-    DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-
-
     # Set exp args
     parser = argparse.ArgumentParser()
     # Specify the model
@@ -70,6 +52,13 @@ if __name__ == 'main':
         type=str,
         default='../baselines/DSTMamba/LTSFConfig/PEMS08.yaml'
     )
+    # Specify random seed
+    parser.add_argument(
+        '-rs',
+        '--random_seed',
+        type=int,
+        default=2024
+    )
     #
     parser.add_argument(
         '-c', 
@@ -84,6 +73,13 @@ if __name__ == 'main':
     )
     # TODO: add arg: save_resutls
     args = parser.parse_args()
+
+    # fix random seed in a single exp
+    fix_seed = args.random_seed
+    seed_everything(fix_seed)
+
+    # Set device
+    DEVICE = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
 
 
     model_arch = select_model(args.model_name)

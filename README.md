@@ -1,1 +1,1 @@
-TODO: create .sh file to control the exps.
+bash exp/dstmamba_ltsf_pems08.sh

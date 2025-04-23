@@ -24,6 +24,8 @@ class STFRunner(BaseRunner):
         self.scaler = scaler
         self.log = log
 
+        self.clip_grad = self.cfg['OPTIM'].get('clip_grad')        
+
         if self.cfg['OPTIM'].get('use_cl'):
             if 'cl_step_size' not in self.cfg['OPTIM']:
                 raise KeyError('Missing config: cl_step_size (int)')
@@ -61,13 +63,13 @@ class STFRunner(BaseRunner):
             else:
                 loss = criterion(out_batch, y_batch)
 
-            # TODO: enable visualization for loss
+            # TODO: Enable visualization for loss
             batch_loss_list.append(loss.item())
 
             optimizer.zero_grad()
             loss.backward()
             if self.clip_grad:
-                nn.utils.clip_grad_norm_(model.parameters(), self.cfg['OPTIM'].get('clip_grad'))
+                nn.utils.clip_grad_norm_(model.parameters(), self.clip_grad)
             optimizer.step()
 
         epoch_loss = np.mean(batch_loss_list)
@@ -249,5 +251,4 @@ class STFRunner(BaseRunner):
             model,
             x_shape,
             verbose=0, # avoid print twice
-            device=self.device
-        )
+            device=self.device)
