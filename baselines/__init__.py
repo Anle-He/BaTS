@@ -1,9 +1,9 @@
-from .CycleNet import CycleNet
+from .DLinear import DLinear
 
 
 def select_model(name):
     model_dict = {
-        'CycleNet': CycleNet
+        'DLinear': DLinear
     }
 
     return model_dict[name]
