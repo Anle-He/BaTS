@@ -3,8 +3,7 @@ import sys
 import torch
 import torch.nn as nn
 
-sys.path.append('..')
-from baselines.modules import series_decomp
+from .SeriesDec import series_decomp
 
 
 class DLinear(nn.Module):
@@ -75,6 +74,7 @@ class DLinear(nn.Module):
             trend_output = self.Linear_Trend(trend_init)
 
         prediction = seasonal_output + trend_output
-        prediction.permute(0, 2, 1).unsqueeze(-1)
+        prediction = prediction.permute(0, 2, 1)
+        prediction = prediction.unsqueeze(-1)
 
         return prediction
