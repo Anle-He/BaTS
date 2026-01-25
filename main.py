@@ -150,8 +150,7 @@ def main() -> None:
     )
 
     optimizer = torch.optim.Adam(
-        model.parameters(),
-        lr=cfg['OPTIM'].get('initial_lr', 1e-3)
+        model.parameters(), lr=cfg['OPTIM'].get('initial_lr', 1e-3)
     )
 
     lr_scheduler_type = cfg['OPTIM'].get('lr_scheduler_type', 'ExponentialLR')

@@ -1,6 +1,8 @@
 from collections.abc import Callable
+from typing import TextIO, cast
 import json
 import numpy as np
+from pathlib import Path
 import torch
 import torch.nn as nn
 
@@ -132,7 +134,7 @@ class StandardScaler:
         self.mean = data.mean()
         self.std = data.std()
 
-        if self.std == 0:
+        if np.any(self.std == 0):
             raise ValueError('Standard deviation is zero, cannot normalize data')
 
         return (data - self.mean) / self.std
@@ -144,7 +146,7 @@ class StandardScaler:
         if self.mean is None or self.std is None:
             raise ValueError('Scaler has not been fitted. Call fit_transform first.')
 
-        if self.std == 0:
+        if np.any(self.std == 0):
             raise ValueError('Standard deviation is zero, cannot normalize data')
 
         return (data - self.mean) / self.std
@@ -159,17 +161,29 @@ class StandardScaler:
         return (data * self.std) + self.mean
 
 
-def print_log(*values: object, log: str | None = None, end: str = '\n') -> None:
+def print_log(
+    *values: object, log: str | TextIO | None = None, end: str = '\n'
+) -> None:
 
     print(*values, end=end)
 
     # 写入日志文件
     if log:
         try:
-            with open(log, 'a', encoding='utf-8') as log_file:
+            # 检查log是否是已打开的文件对象
+            if hasattr(log, 'write'):
+                # log已经是文件对象，直接写入
+                log_file = cast(TextIO, log)
                 print(*values, file=log_file, end=end)
                 log_file.flush()
-        except IOError as e:
+
+            else:
+                # log是文件路径字符串，需要打开
+                log_path = cast(str, log)
+                with Path(log_path).open('a', encoding='utf-8') as log_file:
+                    print(*values, file=log_file, end=end)
+                    log_file.flush()
+        except OSError as e:
             print(f'Warning: Failed to write to log file {log}: {e}')
 
 

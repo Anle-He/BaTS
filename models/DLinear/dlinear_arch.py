@@ -59,9 +59,6 @@ class DLinear(nn.Module):
             self.linear_trend = nn.Linear(self.history_seq_len, self.future_seq_len)
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
-        assert history_data.shape[-1] == 1, (
-            f'Expected last dimension to be 1, got {history_data.shape[-1]}'
-        )
         x = history_data[
             ..., 0
         ]  # from [batch_size, seq_len, num_channels, 1] -> [batch_size, seq_len, num_channels]
