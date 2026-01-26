@@ -1,0 +1,17 @@
+# --------- General Configs ---------
+
+# --------- Model Configs ---------
+MODEL_PARAM:
+  history_seq_len: 96
+  future_seq_len: 96
+  enc_in: 170
+  d_model: 512
+  d_state: 32
+  d_conv: 2
+  expand: 1
+  emb_dropout: 0.1
+  ffn_dropout: 0.1
+  d_ff: 512
+  e_layers: 2
+  use_norm: False
+  ffn_activation: 'gelu'
