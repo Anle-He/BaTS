@@ -1,16 +1,13 @@
-from typing import Any
-
 import torch
 import torch.nn as nn
 from mamba_ssm import Mamba  # type: ignore
-
 
 from .embed import SeriesEmbedding
 from .mamba_enc import Encoder, EncoderLayer
 
 
 class SMamba(nn.Module):
-    def __init__(self, **model_args: dict[str, Any]):
+    def __init__(self, **model_args):
         super().__init__()
 
         self.history_seq_len = model_args['history_seq_len']
