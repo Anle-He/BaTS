@@ -57,10 +57,10 @@ def _create_dataloaders(
     x_test: np.ndarray,
     y_test: np.ndarray,
     batch_size: int,
-    num_workers: int = 4,  # 新增：并行加载线程数
-    pin_memory: bool = True,  # 新增：加速 CPU→GPU 传输
+    num_workers: int = 4,
+    pin_memory: bool = True,
 ) -> tuple[DataLoader, DataLoader, DataLoader]:
-    """创建优化的 DataLoader"""
+
     trainset = TensorDataset(torch.FloatTensor(x_train), torch.FloatTensor(y_train))
     valset = TensorDataset(torch.FloatTensor(x_val), torch.FloatTensor(y_val))
     testset = TensorDataset(torch.FloatTensor(x_test), torch.FloatTensor(y_test))
