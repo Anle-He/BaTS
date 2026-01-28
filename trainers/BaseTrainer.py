@@ -23,5 +23,5 @@ class BaseTrainer(ABC):
         pass
 
     @abstractmethod
-    def model_summary(self):
+    def model_summary(self, model, dataloader) -> str:
         pass

@@ -1,9 +1,9 @@
 import time
 import copy
 import datetime
+import numpy as np
 from typing import Any
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torchinfo import summary
@@ -30,8 +30,8 @@ class LTSFTrainer(BaseTrainer):
 
         batch_loss_list = []
         for x_batch, y_batch in train_loader:
-            x_batch = x_batch.to(self.device)
-            y_batch = y_batch.to(self.device)
+            x_batch = x_batch.float().to(self.device)
+            y_batch = y_batch.float().to(self.device)
 
             out_batch = model(x_batch)
 
@@ -60,7 +60,7 @@ class LTSFTrainer(BaseTrainer):
 
             out_batch = model(x_batch)
 
-            loss = criterion(out_batch.detach().cpu(), y_batch.detach().cpu())
+            loss = criterion(out_batch, y_batch)
             batch_loss_list.append(loss.item())
 
         return np.mean(batch_loss_list)
@@ -69,8 +69,8 @@ class LTSFTrainer(BaseTrainer):
     def predict(self, model, loader):
         model.eval()
 
-        y = []
-        out = []
+        y_list = []
+        out_list = []
 
         for x_batch, y_batch in loader:
             x_batch = x_batch.float().to(self.device)
@@ -78,15 +78,12 @@ class LTSFTrainer(BaseTrainer):
 
             out_batch = model(x_batch)
 
-            out_batch = out_batch.cpu().numpy()
-            y_batch = y_batch.cpu().numpy()
-
-            out.append(out_batch)
-            y.append(y_batch)
+            out_list.append(out_batch.cpu().numpy())
+            y_list.append(y_batch.cpu().numpy())
 
         # (samples, out_steps, num_nodes, output_dim)
-        out = np.vstack(out)
-        y = np.vstack(y)
+        y = np.vstack(y_list)
+        out = np.vstack(out_list)
 
         return y, out
 
@@ -105,6 +102,7 @@ class LTSFTrainer(BaseTrainer):
     ):
         wait = 0
         min_val_loss = np.inf
+        best_epoch = 0
 
         train_loss_list = []
         val_loss_list = []
@@ -183,7 +181,7 @@ class LTSFTrainer(BaseTrainer):
         print_log(out_str, log=self.log, end='')
         print_log('Inference time: %.3f s' % (end - start), log=self.log)
 
-    def model_summary(self, model, dataloader):
+    def model_summary(self, model, dataloader) -> str:
         x_shape = next(iter(dataloader))[0].shape
 
-        return summary(model, x_shape, verbose=0, device=self.device)
+        return str(summary(model, x_shape, verbose=0, device=self.device))
