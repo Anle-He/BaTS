@@ -3,7 +3,7 @@ import torch.nn as nn
 
 from .embed import DataEmbedding_inverted
 from .transformer_blocks import Encoder, EncoderLayer
-from .SelfAttention import FullAttention, AttentionLayer
+from .attention import FullAttention, AttentionLayer
 
 
 class iTransformer(nn.Module):
