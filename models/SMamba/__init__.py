@@ -1,3 +1,3 @@
-from .smamba_arch import SMamba
+from .arch import SMamba
 
 __all__ = ['SMamba']

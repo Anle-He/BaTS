@@ -1,3 +1,3 @@
-from .dlinear_arch import DLinear
+from .arch import DLinear
 
 __all__ = ['DLinear']
