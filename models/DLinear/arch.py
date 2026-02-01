@@ -3,7 +3,7 @@ from typing import Any
 import torch
 import torch.nn as nn
 
-from .series_decomp import SeriesDecomp
+from .modules import SeriesDecomp
 
 
 class DLinear(nn.Module):

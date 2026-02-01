@@ -2,8 +2,7 @@ import torch
 import torch.nn as nn
 from mamba_ssm import Mamba  # type: ignore
 
-from .embed import SeriesEmbedding
-from .mamba_enc import Encoder, EncoderLayer
+from .modules import SeriesEmbedding, Encoder, EncoderLayer
 
 
 class SMamba(nn.Module):

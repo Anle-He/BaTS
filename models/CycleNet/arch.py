@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from .RecurrentCycle import RecurrentCycle
+from .modules import RecurrentCycle
 
 
 class CycleNet(nn.Module):
