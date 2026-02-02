@@ -1,9 +1,13 @@
 import torch
 import torch.nn as nn
 
-from .embed import DataEmbedding_inverted
-from .transformer_blocks import Encoder, EncoderLayer
-from .attention import FullAttention, AttentionLayer
+from .modules import (
+    DataEmbedding_inverted,
+    Encoder,
+    EncoderLayer,
+    FullAttention,
+    AttentionLayer
+)
 
 
 class iTransformer(nn.Module):
