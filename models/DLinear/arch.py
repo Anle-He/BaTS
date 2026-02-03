@@ -51,8 +51,12 @@ class DLinear(nn.Module):
                     nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
                 )
         else:
-            self.linear_seasonal = nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
-            self.linear_trend = nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
+            self.linear_seasonal = nn.Linear(
+                self.config.history_seq_len, self.config.future_seq_len
+            )
+            self.linear_trend = nn.Linear(
+                self.config.history_seq_len, self.config.future_seq_len
+            )
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
         x = history_data[
