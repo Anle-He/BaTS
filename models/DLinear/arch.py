@@ -1,9 +1,19 @@
 from typing import Any
+from dataclasses import dataclass, fields
 
 import torch
 import torch.nn as nn
 
 from .modules import SeriesDecomp
+
+
+@dataclass
+class DLinearConfig:
+    history_seq_len: int
+    future_seq_len: int
+    num_nodes: int
+    individual: bool
+    kernel_size: int
 
 
 class DLinear(nn.Module):
@@ -20,61 +30,47 @@ class DLinear(nn.Module):
     def __init__(self, **model_args: Any) -> None:
         super().__init__()
 
-        # Verify the necessary args
-        required_keys = [
-            'history_seq_len',
-            'future_seq_len',
-            'num_channels',
-            'individual',
-            'kernel_size',
-        ]
-        for key in required_keys:
-            if key not in model_args:
-                raise ValueError(f'Missing required parameter: {key}')
-
-        self.history_seq_len = model_args['history_seq_len']
-        self.future_seq_len = model_args['future_seq_len']
-        self.num_channels = model_args['num_channels']
-        self.individual = model_args['individual']
-        self.kernel_size = model_args['kernel_size']
+        self.config = DLinearConfig(**model_args)
+        for field in fields(self.config):
+            setattr(self, field.name, getattr(self.config, field.name))
 
         self.build()
 
     def build(self) -> None:
-        self.decomposition = SeriesDecomp(self.kernel_size)
+        self.decomposition = SeriesDecomp(self.config.kernel_size)
 
-        if self.individual:
+        if self.config.individual:
             self.linear_seasonal = nn.ModuleList()
             self.linear_trend = nn.ModuleList()
 
-            for _ in range(self.num_channels):
+            for _ in range(self.config.num_nodes):
                 self.linear_seasonal.append(
-                    nn.Linear(self.history_seq_len, self.future_seq_len)
+                    nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
                 )
                 self.linear_trend.append(
-                    nn.Linear(self.history_seq_len, self.future_seq_len)
+                    nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
                 )
         else:
-            self.linear_seasonal = nn.Linear(self.history_seq_len, self.future_seq_len)
-            self.linear_trend = nn.Linear(self.history_seq_len, self.future_seq_len)
+            self.linear_seasonal = nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
+            self.linear_trend = nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
         x = history_data[
             ..., 0
-        ]  # from [batch_size, seq_len, num_channels, 1] -> [batch_size, seq_len, num_channels]
+        ]  # from [batch_size, seq_len, num_nodes, 1] -> [batch_size, seq_len, num_nodes]
 
         seasonal_init, trend_init = self.decomposition(x)
-        # [batch_size, seq_len, num_channels -> batch_size, num_channels, seq_len]
+        # [batch_size, seq_len, num_nodes -> batch_size, num_nodes, seq_len]
         seasonal_init, trend_init = (
             seasonal_init.permute(0, 2, 1),
             trend_init.permute(0, 2, 1),
         )
 
-        if self.individual:
+        if self.config.individual:
             seasonal_output = self._create_output_tensor(seasonal_init)
             trend_output = self._create_output_tensor(trend_init)
 
-            for i in range(self.num_channels):
+            for i in range(self.config.num_nodes):
                 seasonal_output[:, i, :] = self.linear_seasonal[i](  # type: ignore
                     seasonal_init[:, i, :]
                 )
@@ -91,16 +87,16 @@ class DLinear(nn.Module):
 
     def _create_output_tensor(self, input_tensor: torch.Tensor) -> torch.Tensor:
         return torch.zeros(
-            [input_tensor.size(0), input_tensor.size(1), self.future_seq_len],
+            [input_tensor.size(0), input_tensor.size(1), self.config.future_seq_len],
             dtype=input_tensor.dtype,
             device=input_tensor.device,
         )
 
     def __repr__(self) -> str:
         return (
-            f'DLinear(history_seq_len={self.history_seq_len}, '
-            f'future_seq_len={self.future_seq_len}, '
-            f'num_channels={self.num_channels}, '
-            f'individual={self.individual}, '
-            f'kernel_size={self.kernel_size})'
+            f'DLinear(history_seq_len={self.config.history_seq_len}, '
+            f'future_seq_len={self.config.future_seq_len}, '
+            f'num_nodes={self.config.num_nodes}, '
+            f'individual={self.config.individual}, '
+            f'kernel_size={self.config.kernel_size})'
         )
