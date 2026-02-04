@@ -22,6 +22,7 @@ class MTGNNConfig:
     subgraph_size: int
     node_dim: int
     tanhalpha: float
+    propalpha: float
     dropout: float
     layers: int
     in_dim: int
@@ -126,12 +127,15 @@ class MTGNN(nn.Module):
                         kernel_size=(1, 1),
                     )
                 )
-                if self.seq_length > self.receptive_field:
+                if self.config.history_seq_len > self.receptive_field:
                     self.skip_convs.append(
                         nn.Conv2d(
                             in_channels=self.config.conv_channels,
                             out_channels=self.config.skip_channels,
-                            kernel_size=(1, self.seq_length - rf_size_j + 1),
+                            kernel_size=(
+                                1,
+                                self.config.history_seq_len - rf_size_j + 1,
+                            ),
                         )
                     )
                 else:
@@ -150,20 +154,20 @@ class MTGNN(nn.Module):
                             self.config.residual_channels,
                             self.config.gcn_depth,
                             self.config.dropout,
-                            propalpha,
+                            self.config.propalpha,
                         )
                     )
                     self.gconv2.append(
                         MixProp(
                             self.config.conv_channels,
                             self.config.residual_channels,
-                            gcn_depth,
+                            self.config.gcn_depth,
                             self.config.dropout,
-                            propalpha,
+                            self.config.propalpha,
                         )
                     )
 
-                if self.seq_length > self.receptive_field:
+                if self.config.history_seq_len > self.receptive_field:
                     self.norm.append(
                         LayerNorm(
                             (
@@ -201,7 +205,7 @@ class MTGNN(nn.Module):
             kernel_size=(1, 1),
             bias=True,
         )
-        if self.seq_length > self.receptive_field:
+        if self.config.history_seq_len > self.receptive_field:
             self.skip0 = nn.Conv2d(
                 in_channels=self.config.in_dim,
                 out_channels=self.config.skip_channels,
@@ -211,7 +215,7 @@ class MTGNN(nn.Module):
             self.skipE = nn.Conv2d(
                 in_channels=self.config.residual_channels,
                 out_channels=self.config.skip_channels,
-                kernel_size=(1, self.seq_length - self.receptive_field + 1),
+                kernel_size=(1, self.config.history_seq_len - self.receptive_field + 1),
                 bias=True,
             )
 
@@ -229,7 +233,7 @@ class MTGNN(nn.Module):
                 bias=True,
             )
 
-        self.idx = torch.arange(self.num_nodes).to(device)
+        self.idx = torch.arange(self.config.num_nodes).to(device)
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
 
