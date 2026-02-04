@@ -53,9 +53,9 @@ class DSTMamba(nn.Module):
 
         self.initial_tre_w = model_args['initial_tre_w']
 
-        self.build()
+        self._build()
 
-    def build(self):
+    def _build(self):
 
         self.revin_layer = RevIN(num_features=self.num_channels)
 
@@ -83,7 +83,7 @@ class DSTMamba(nn.Module):
                     dropout=self.ffn_dropout,
                     activation=self.ffn_activation,
                 )
-                for layer in range(self.e_layers)
+                for _ in range(self.e_layers)
             ],
             # TODO: Test the effectiveness of _RMSNorm_
             norm_layer=nn.LayerNorm(self.d_model),
@@ -119,7 +119,7 @@ class DSTMamba(nn.Module):
             nn.Linear(
                 self.history_seq_len // (self.ds_window ** (l)), self.future_seq_len
             )
-            for l in range(self.ds_layers + 1)
+            for _ in range(self.ds_layers + 1)
         ])
 
         self.tre_w = nn.Parameter(
