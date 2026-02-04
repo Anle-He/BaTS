@@ -34,9 +34,9 @@ class DLinear(nn.Module):
         for field in fields(self.config):
             setattr(self, field.name, getattr(self.config, field.name))
 
-        self.build()
+        self._build()
 
-    def build(self) -> None:
+    def _build(self) -> None:
         self.decomposition = SeriesDecomp(self.config.kernel_size)
 
         if self.config.individual:

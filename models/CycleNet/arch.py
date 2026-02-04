@@ -6,12 +6,12 @@ from .modules import RecurrentCycle
 
 class CycleNet(nn.Module):
     def __init__(self, **model_args):
-        super(CycleNet, self).__init__()
+        super().__init__()
 
         self.history_seq_len = model_args['history_seq_len']
         self.future_seq_len = model_args['future_seq_len']
 
-        self.num_channels = model_args['num_channels']
+        self.num_nodes = model_args['num_nodes']
         self.cycle_len = model_args['cycle_len']
         self.d_model = model_args['d_model']
         self.use_revin = model_args['use_revin']

@@ -1,37 +1,29 @@
-import numbers
-
 import torch
-from torch import nn
+import torch.nn as nn
 import torch.nn.functional as F
 
 
-class graph_constructor(nn.Module):
-    def __init__(self, nnodes, k, dim, device, alpha=3, static_feat=None):
+class GraphConstructor(nn.Module):
+    def __init__(self, num_nodes: int, subgraph_size: int, node_dim: int, alpha: float):
         super().__init__()
-        self.nnodes = nnodes
-        if static_feat is not None:
-            xd = static_feat.shape[1]
-            self.lin1 = nn.Linear(xd, dim)
-            self.lin2 = nn.Linear(xd, dim)
-        else:
-            self.emb1 = nn.Embedding(nnodes, dim)
-            self.emb2 = nn.Embedding(nnodes, dim)
-            self.lin1 = nn.Linear(dim, dim)
-            self.lin2 = nn.Linear(dim, dim)
 
-        self.device = device
-        self.k = k
-        self.dim = dim
+        self.subgraph_size = subgraph_size
         self.alpha = alpha
-        self.static_feat = static_feat
 
-    def forward(self, idx):
-        if self.static_feat is None:
-            nodevec1 = self.emb1(idx)
-            nodevec2 = self.emb2(idx)
-        else:
-            nodevec1 = self.static_feat[idx, :]
-            nodevec2 = nodevec1
+        self.emb1 = nn.Embedding(num_nodes, node_dim)
+        self.emb2 = nn.Embedding(num_nodes, node_dim)
+        self.lin1 = nn.Linear(node_dim, node_dim)
+        self.lin2 = nn.Linear(node_dim, node_dim)
+
+        self._reset_parameters()
+
+    def _reset_parameters(self) -> None:
+        nn.init.xavier_uniform_(self.emb1.weight)
+        nn.init.xavier_uniform_(self.emb2.weight)
+
+    def forward(self, idx: torch.Tensor) -> torch.Tensor:
+        nodevec1 = self.emb1(idx)
+        nodevec2 = self.emb2(idx)
 
         nodevec1 = torch.tanh(self.alpha * self.lin1(nodevec1))
         nodevec2 = torch.tanh(self.alpha * self.lin2(nodevec2))
@@ -40,117 +32,83 @@ class graph_constructor(nn.Module):
             nodevec2, nodevec1.transpose(1, 0)
         )
         adj = F.relu(torch.tanh(self.alpha * a))
-        mask = torch.zeros(idx.size(0), idx.size(0)).to(self.device)
-        mask.fill_(float('0'))
-        s1, t1 = adj.topk(self.k, 1)  # top-k sparsify
-        mask.scatter_(1, t1, s1.fill_(1))  # discretize to {0, 1}?
-        adj = adj * mask
-        return adj
+        mask = torch.zeros_like(adj)
+
+        topk_values, topk_indices = adj.topk(self.subgraph_size, dim=1)
+        mask.scatter_(1, topk_indices, topk_values.fill_(1))
+
+        return adj * mask
 
 
-class mixprop(nn.Module):
-    def __init__(self, c_in, c_out, gdep, dropout, alpha):
-        super().__init__()
-        self.nconv = nconv()
-        self.mlp = linear((gdep + 1) * c_in, c_out)
-        self.gdep = gdep
-        self.dropout = dropout
-        self.alpha = alpha
-
-    def forward(self, x, adj):
-        adj = adj + torch.eye(adj.size(0)).to(x.device)
-        d = adj.sum(1)
-        h = x
-        out = [h]
-        a = adj / d.view(-1, 1)
-        for i in range(self.gdep):
-            h = self.alpha * x + (1 - self.alpha) * self.nconv(h, a)
-            out.append(h)
-        ho = torch.cat(out, dim=1)
-        ho = self.mlp(ho)
-        return ho
-
-
-class nconv(nn.Module):
+class GraphConv(nn.Module):
     def __init__(self):
         super().__init__()
 
-    def forward(self, x, A):
-        x = torch.einsum('ncwl,vw->ncvl', (x, A))
-        return x.contiguous()
+    def forward(self, x: torch.Tensor, A: torch.Tensor) -> torch.Tensor:
+        return torch.einsum('ncwl,vw->ncvl', x, A)
 
 
-class linear(nn.Module):
-    def __init__(self, c_in, c_out, bias=True):
+class MixProp(nn.Module):
+    def __init__(self, c_in: int, c_out: int, gdep: int, dropout: float, alpha: float):
         super().__init__()
-        self.mlp = torch.nn.Conv2d(
-            c_in, c_out, kernel_size=(1, 1), padding=(0, 0), stride=(1, 1), bias=bias
-        )
+        self.graph_conv = GraphConv()
+        self.mlp = nn.Conv2d((gdep + 1) * c_in, c_out, kernel_size=1)
+        self.gdep = gdep
+        self.dropout = nn.Dropout(dropout)
+        self.alpha = alpha
 
-    def forward(self, x):
-        return self.mlp(x)
+    def forward(self, x: torch.Tensor, adj: torch.Tensor) -> torch.Tensor:
+        # Add self-loop
+        adj = adj + torch.eye(adj.size(0), device=x.device)
+
+        # Degree normalization
+        d = adj.sum(dim=1).clamp(min=1e-6)
+        a = adj / d.unsqueeze(1)
+
+        h = x
+        out = [h]
+
+        for _ in range(self.gdep):
+            h = self.alpha * x + (1 - self.alpha) * self.graph_conv(h, a)
+            out.append(h)
+
+        ho = torch.cat(out, dim=1)
+        ho = self.dropout(ho)
+        ho = self.mlp(ho)
+
+        return ho
 
 
-class dilated_inception(nn.Module):
-    def __init__(self, cin, cout, dilation_factor=2):
+class DilatedInception(nn.Module):
+    def __init__(self, cin: int, cout: int, dilation_factor: int = 2):
         super().__init__()
-        self.tconv = nn.ModuleList()
+
         self.kernel_set = [2, 3, 6, 7]
-        cout = int(cout / len(self.kernel_set))
-        for kern in self.kernel_set:
-            self.tconv.append(
-                nn.Conv2d(cin, cout, (1, kern), dilation=(1, dilation_factor))
-            )
 
-    def forward(self, input):
-        x = []
-        for i in range(len(self.kernel_set)):
-            x.append(self.tconv[i](input))
-        for i in range(len(self.kernel_set)):
-            x[i] = x[i][..., -x[-1].size(3) :]
-        x = torch.cat(x, dim=1)
-        return x
-
-
-class LayerNorm(nn.Module):
-    __constants__ = ['normalized_shape', 'weight', 'bias', 'eps', 'elementwise_affine']
-
-    def __init__(self, normalized_shape, eps=1e-5, elementwise_affine=True):
-        super().__init__()
-        if isinstance(normalized_shape, numbers.Integral):
-            normalized_shape = (normalized_shape,)
-        self.normalized_shape = tuple(normalized_shape)
-        self.eps = eps
-        self.elementwise_affine = elementwise_affine
-        if self.elementwise_affine:
-            self.weight = nn.Parameter(torch.Tensor(*normalized_shape))
-            self.bias = nn.Parameter(torch.Tensor(*normalized_shape))
-        else:
-            self.register_parameter('weight', None)
-            self.register_parameter('bias', None)
-        self.reset_parameters()
-
-    def reset_parameters(self):
-        if self.elementwise_affine:
-            nn.init.ones_(self.weight)
-            nn.init.zeros_(self.bias)
-
-    def forward(self, input, idx):
-        if self.elementwise_affine:
-            return F.layer_norm(
-                input,
-                tuple(input.shape[1:]),
-                self.weight[:, idx, :],
-                self.bias[:, idx, :],
-                self.eps,
-            )
-        else:
-            return F.layer_norm(
-                input, tuple(input.shape[1:]), self.weight, self.bias, self.eps
-            )
-
-    def extra_repr(self):
-        return (
-            '{normalized_shape}, eps={eps}, '
-            'elementwise_affine={elementwise_affine}'.format(**self.__dict__)
+        # Ensure cout is divisible by number of kernels
+        assert cout % len(self.kernel_set) == 0, (
+            f'cout ({cout}) must be divisible by number of kernels ({len(self.kernel_set)})'
         )
+
+        cout_per_kernel = cout // len(self.kernel_set)
+
+        self.tconv = nn.ModuleList([
+            nn.Conv2d(
+                cin,
+                cout_per_kernel,
+                kernel_size=(1, kern),
+                dilation=(1, dilation_factor),
+                padding=(0, (kern - 1) // 2 * dilation_factor),
+            )
+            for kern in self.kernel_set
+        ])
+
+    def forward(self, x: torch.Tensor) -> torch.Tensor:
+
+        outputs = [conv(x) for conv in self.tconv]
+
+        # Align temporal dimensions
+        min_len = min(out.size(-1) for out in outputs)
+        outputs = [out[..., -min_len:] for out in outputs]
+
+        return torch.cat(outputs, dim=1)

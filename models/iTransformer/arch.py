@@ -6,7 +6,7 @@ from .modules import (
     Encoder,
     EncoderLayer,
     FullAttention,
-    AttentionLayer
+    AttentionLayer,
 )
 
 
