@@ -185,7 +185,7 @@ class MultiScaleTrendMixing(nn.Module):
 
 class Encoder(nn.Module):
     def __init__(self, ssm_layers, norm_layer):
-        super(Encoder, self).__init__()
+        super().__init__()
 
         self.ssm_layers = nn.ModuleList(ssm_layers)
         self.norm_layer = norm_layer
