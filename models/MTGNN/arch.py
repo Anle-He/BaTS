@@ -8,6 +8,7 @@ from .modules import (
     GraphConstructor,
     MixProp,
     DilatedInception,
+    LayerNorm,
 )
 
 
