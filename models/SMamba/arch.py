@@ -1,3 +1,6 @@
+from typing import Any
+from dataclasses import dataclass, fields
+
 import torch
 import torch.nn as nn
 from mamba_ssm import Mamba  # type: ignore
@@ -5,48 +8,67 @@ from mamba_ssm import Mamba  # type: ignore
 from .modules import SeriesEmbedding, Encoder, EncoderLayer
 
 
+@dataclass
+class SMambaConfig:
+    seq_len_in: int
+    seq_len_out: int
+    use_norm: bool
+    d_model: int
+    emb_dropout: float
+    d_state: int
+    d_conv: int
+    expand: int
+    d_ff: int
+    ffn_dropout: float
+    ffn_activation: str
+    e_layers: int
+
+
 class SMamba(nn.Module):
-    def __init__(self, **model_args):
+    def __init__(self, **model_args: Any) -> None:
         super().__init__()
 
-        self.history_seq_len = model_args['history_seq_len']
-        self.future_seq_len = model_args['future_seq_len']
+        self.config = SMambaConfig(**model_args)
+        for field in fields(self.config):
+            setattr(self, field.name, getattr(self.config, field.name))
 
-        self.use_norm = model_args['use_norm']
+        self._build()
+
+    def _build(self) -> None:
 
         self.embedding = SeriesEmbedding(
-            model_args['history_seq_len'],
-            model_args['d_model'],
-            model_args['emb_dropout'],
+            self.config.seq_len_in,
+            self.config.d_model,
+            self.config.emb_dropout,
         )
 
         self.encoder = Encoder(
             [
                 EncoderLayer(
                     Mamba(
-                        d_model=model_args['d_model'],
-                        d_state=model_args['d_state'],
-                        d_conv=model_args['d_conv'],
-                        expand=model_args['expand'],
+                        d_model=self.config.d_model,
+                        d_state=self.config.d_state,
+                        d_conv=self.config.d_conv,
+                        expand=self.config.expand,
                     ),
                     Mamba(
-                        d_model=model_args['d_model'],
-                        d_state=model_args['d_state'],
-                        d_conv=model_args['d_conv'],
-                        expand=model_args['expand'],
+                        d_model=self.config.d_model,
+                        d_state=self.config.d_state,
+                        d_conv=self.config.d_conv,
+                        expand=self.config.expand,
                     ),
-                    model_args['d_model'],
-                    model_args['d_ff'],
-                    dropout=model_args['ffn_dropout'],
-                    activation=model_args['ffn_activation'],
+                    self.config.d_model,
+                    self.config.d_ff,
+                    dropout=self.config.ffn_dropout,
+                    activation=self.config.ffn_activation,
                 )
-                for layer in range(model_args['e_layers'])
+                for layer in range(self.config.e_layers)
             ],
-            norm=nn.LayerNorm(model_args['d_model']),
+            norm=nn.LayerNorm(self.config.d_model),
         )
 
         self.projector = nn.Linear(
-            model_args['d_model'], model_args['future_seq_len'], bias=True
+            self.config.d_model, self.config.seq_len_out, bias=True
         )
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
@@ -74,10 +96,10 @@ class SMamba(nn.Module):
 
         if self.use_norm:
             dec_out = dec_out * (
-                stdev[:, 0, :].unsqueeze(1).repeat(1, self.future_seq_len, 1)
+                stdev[:, 0, :].unsqueeze(1).repeat(1, self.config.seq_len_out, 1)
             )
             dec_out = dec_out + (
-                means[:, 0, :].unsqueeze(1).repeat(1, self.future_seq_len, 1)
+                means[:, 0, :].unsqueeze(1).repeat(1, self.config.seq_len_out, 1)
             )
 
         prediction = dec_out.unsqueeze(-1)
