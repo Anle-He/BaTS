@@ -1,3 +1,6 @@
+from typing import Any
+from dataclasses import dataclass, fields
+
 import torch
 import torch.nn as nn
 
@@ -9,51 +12,59 @@ from .modules import (
     AttentionLayer,
 )
 
+@dataclass
+class iTransformerConfig:
+    seq_len_in: int
+    seq_len_out: int
+    d_model: int
+    d_ff: int
+    dropout: float
+    n_heads: int
+    activation: str
+    e_layers: int
+    use_norm: bool
+
 
 class iTransformer(nn.Module):
-    def __init__(self, **model_args):
+    def __init__(self, **model_args: Any) -> None:
         super().__init__()
 
-        self.history_seq_len = model_args['history_seq_len']
-        self.future_seq_len = model_args['future_seq_len']
-        self.d_model = model_args['d_model']
-        self.d_ff = model_args['d_ff']
+        self.config = iTransformerConfig(**model_args)
+        for field in fields(self.config):
+            setattr(self, field.name, getattr(self.config, field.name))
 
-        self.dropout = model_args['dropout']
-        self.n_heads = model_args['n_heads']
-        self.activation = model_args['activation']
-        self.e_layers = model_args['e_layers']
+        self._build()
 
-        self.use_norm = model_args['use_norm']
+    def _build(self) -> None:
 
         self.embedding = DataEmbedding_inverted(
-            self.history_seq_len, self.d_model, self.dropout
+            self.config.seq_len_in, self.config.d_model, self.config.dropout
         )
         self.encoder = Encoder(
             [
                 EncoderLayer(
                     AttentionLayer(
                         FullAttention(False, attention_dropout=self.dropout),
-                        self.d_model,
-                        self.n_heads,
+                        self.config.d_model,
+                        self.config.n_heads,
                     ),
-                    self.d_model,
-                    self.d_ff,
-                    dropout=self.dropout,
-                    activation=self.activation,
+                    self.config.d_model,
+                    self.config.d_ff,
+                    dropout=self.config.dropout,
+                    activation=self.config.activation,
                 )
-                for _ in range(self.e_layers)
+                for _ in range(self.config.e_layers)
             ],
-            norm_layer=nn.LayerNorm(self.d_model),
+            norm_layer=nn.LayerNorm(self.config.d_model),
         )
 
-        self.projector = nn.Linear(self.d_model, self.future_seq_len, bias=True)
+        self.projector = nn.Linear(self.config.d_model, self.config.seq_len_out, bias=True)
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
 
         x_in = history_data[..., 0]
 
-        if self.use_norm:
+        if self.config.use_norm:
             means = x_in.mean(1, keepdim=True).detach()
             x_in = x_in - means
             stdev = torch.sqrt(
@@ -67,12 +78,12 @@ class iTransformer(nn.Module):
 
         dec_out = self.projector(enc_out).permute(0, 2, 1)
 
-        if self.use_norm:
+        if self.config.use_norm:
             dec_out = dec_out * (
-                stdev[:, 0, :].unsqueeze(1).repeat(1, self.future_seq_len, 1)
+                stdev[:, 0, :].unsqueeze(1).repeat(1, self.config.seq_len_out, 1)
             )
             dec_out = dec_out + (
-                means[:, 0, :].unsqueeze(1).repeat(1, self.future_seq_len, 1)
+                means[:, 0, :].unsqueeze(1).repeat(1, self.config.seq_len_out, 1)
             )
 
         return dec_out.unsqueeze(-1)
