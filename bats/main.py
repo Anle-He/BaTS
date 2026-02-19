@@ -14,7 +14,7 @@ import torch
 from models import select_model
 from trainers import select_trainer
 from data.get_dataloader import select_dataloader
-from tools import print_log, select_loss, CustomJSONEncoder
+from bats.tools import print_log, select_loss, CustomJSONEncoder
 
 install()
 

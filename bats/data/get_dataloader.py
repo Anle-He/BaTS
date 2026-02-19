@@ -6,8 +6,8 @@ from collections.abc import Callable
 import torch
 from torch.utils.data import DataLoader, TensorDataset
 
-from tools import StandardScaler
-from tools import print_log
+from bats.tools import StandardScaler
+from bats.tools import print_log
 
 FEATURE_MAIN = 0
 FEATURE_TOD = 1

@@ -9,7 +9,7 @@ import torch.nn as nn
 from torchinfo import summary
 
 from .BaseTrainer import BaseTrainer
-from tools import print_log, compute_mse_mae
+from bats.tools import print_log, compute_mse_mae
 
 
 class LTSFTrainer(BaseTrainer):
