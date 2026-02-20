@@ -1,11 +1,13 @@
 from .CycleNet import CycleNet
 from .DLinear import DLinear
+from .EMAformer import EMAformer
 from .iTransformer import iTransformer
 from .SMamba import SMamba
 
 _MODEL_REGISTRY = {
     'CycleNet': CycleNet,
     'DLinear': DLinear,
+    'EMAformer': EMAformer,
     'iTransformer': iTransformer,
     'SMamba': SMamba,
 }

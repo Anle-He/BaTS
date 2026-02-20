@@ -18,7 +18,7 @@ from bats.tools import print_log, select_loss, CustomJSONEncoder
 
 install()
 
-DATA_DIR = Path('data/datasets_zoo')
+DATA_DIR = Path('bats/data/datasets_zoo')
 LOG_DIR = Path('logs')
 CHECKPOINT_DIR = Path('checkpoints')
 

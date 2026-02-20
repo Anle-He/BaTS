@@ -12,6 +12,7 @@ from .modules import (
     AttentionLayer,
 )
 
+
 @dataclass
 class iTransformerConfig:
     seq_len_in: int
@@ -38,13 +39,15 @@ class iTransformer(nn.Module):
     def _build(self) -> None:
 
         self.embedding = DataEmbedding_inverted(
-            self.config.seq_len_in, self.config.d_model, self.config.dropout
+            self.config.seq_len_in,
+            self.config.d_model,
+            self.config.dropout
         )
         self.encoder = Encoder(
             [
                 EncoderLayer(
                     AttentionLayer(
-                        FullAttention(False, attention_dropout=self.dropout),
+                        FullAttention(False, attention_dropout=self.config.dropout),
                         self.config.d_model,
                         self.config.n_heads,
                     ),
@@ -52,8 +55,7 @@ class iTransformer(nn.Module):
                     self.config.d_ff,
                     dropout=self.config.dropout,
                     activation=self.config.activation,
-                )
-                for _ in range(self.config.e_layers)
+                ) for _ in range(self.config.e_layers)
             ],
             norm_layer=nn.LayerNorm(self.config.d_model),
         )
@@ -86,4 +88,6 @@ class iTransformer(nn.Module):
                 means[:, 0, :].unsqueeze(1).repeat(1, self.config.seq_len_out, 1)
             )
 
-        return dec_out.unsqueeze(-1)
+        y = dec_out.unsqueeze(-1)
+
+        return y

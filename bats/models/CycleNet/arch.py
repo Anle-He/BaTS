@@ -40,7 +40,7 @@ class CycleNet(nn.Module):
             cycle_index = history_data[..., 1] * self.cycle_len  # [B]
             cycle_index = cycle_index[
                 :, -1, 0
-            ]  # from CycleNet data_loader.py: "cycle_index = torch.tensor(self.cycle_index[s_end])""
+            ]  # from CycleNet data_loader.py: "cycle_index = torch.tensor(self.cycle_index[s_end])"
         elif self.cycle_pattern == 'daily&weekly':
             cycle_index = (
                 history_data[..., 1] * self.cycle_len * 7 + history_data[..., 2] * 7

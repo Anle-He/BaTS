@@ -39,12 +39,16 @@ def _slice_data(
     num_samples = len(indices)
     x_len = indices[0, 1] - indices[0, 0]
     y_len = indices[0, 2] - indices[0, 1]
-    x_data = np.empty((num_samples, x_len, len(x_features)), dtype=data.dtype)
-    y_data = np.empty((num_samples, y_len, len(y_features)), dtype=data.dtype)
+    num_nodes = data.shape[1]
+
+    # 数据格式: (timesteps, nodes, features)
+    # 输出格式: (num_samples, seq_len, num_nodes, num_features)
+    x_data = np.empty((num_samples, x_len, num_nodes, len(x_features)), dtype=data.dtype)
+    y_data = np.empty((num_samples, y_len, num_nodes, len(y_features)), dtype=data.dtype)
 
     for i, (start, mid, end) in enumerate(indices):
-        x_data[i] = data[start:mid, x_features]
-        y_data[i] = data[mid:end, y_features]
+        x_data[i] = data[start:mid, :, x_features]  # (x_len, num_nodes, num_features)
+        y_data[i] = data[mid:end, :, y_features]  # (y_len, num_nodes, num_features)
 
     return x_data, y_data
 
