@@ -69,4 +69,5 @@ class CycleNet(nn.Module):
         # instance denorm
         if self.use_revin:
             y = y * torch.sqrt(seq_var) + seq_mean
+
         return y.unsqueeze(-1)

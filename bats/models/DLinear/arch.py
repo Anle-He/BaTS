@@ -1,5 +1,5 @@
 from typing import Any
-from dataclasses import dataclass, fields
+from dataclasses import dataclass
 
 import torch
 import torch.nn as nn
@@ -8,9 +8,9 @@ from .modules import SeriesDecomp
 
 
 @dataclass
-class DLinearConfig:
-    history_seq_len: int
-    future_seq_len: int
+class DLinearArgs:
+    seq_len_in: int
+    seq_len_out: int
     num_nodes: int
     individual: bool
     kernel_size: int
@@ -30,33 +30,28 @@ class DLinear(nn.Module):
     def __init__(self, **model_args: Any) -> None:
         super().__init__()
 
-        self.config = DLinearConfig(**model_args)
-        for field in fields(self.config):
-            setattr(self, field.name, getattr(self.config, field.name))
-
+        self.args = DLinearArgs(**model_args)
         self._build()
 
     def _build(self) -> None:
-        self.decomposition = SeriesDecomp(self.config.kernel_size)
+        self.decomposition = SeriesDecomp(self.args.kernel_size)
 
-        if self.config.individual:
+        if self.args.individual:
             self.linear_seasonal = nn.ModuleList()
             self.linear_trend = nn.ModuleList()
 
-            for _ in range(self.config.num_nodes):
+            for _ in range(self.args.num_nodes):
                 self.linear_seasonal.append(
-                    nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
+                    nn.Linear(self.args.seq_len_in, self.args.seq_len_out)
                 )
                 self.linear_trend.append(
-                    nn.Linear(self.config.history_seq_len, self.config.future_seq_len)
+                    nn.Linear(self.args.seq_len_in, self.args.seq_len_out)
                 )
         else:
             self.linear_seasonal = nn.Linear(
-                self.config.history_seq_len, self.config.future_seq_len
+                self.args.seq_len_in, self.args.seq_len_out
             )
-            self.linear_trend = nn.Linear(
-                self.config.history_seq_len, self.config.future_seq_len
-            )
+            self.linear_trend = nn.Linear(self.args.seq_len_in, self.args.seq_len_out)
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
         x = history_data[
@@ -70,11 +65,11 @@ class DLinear(nn.Module):
             trend_init.permute(0, 2, 1),
         )
 
-        if self.config.individual:
+        if self.args.individual:
             seasonal_output = self._create_output_tensor(seasonal_init)
             trend_output = self._create_output_tensor(trend_init)
 
-            for i in range(self.config.num_nodes):
+            for i in range(self.args.num_nodes):
                 seasonal_output[:, i, :] = self.linear_seasonal[i](  # type: ignore
                     seasonal_init[:, i, :]
                 )
@@ -85,22 +80,14 @@ class DLinear(nn.Module):
 
         prediction = seasonal_output + trend_output
         prediction = prediction.permute(0, 2, 1)
-        prediction = prediction.unsqueeze(-1)
 
-        return prediction
+        y = prediction.unsqueeze(-1)
+
+        return y
 
     def _create_output_tensor(self, input_tensor: torch.Tensor) -> torch.Tensor:
         return torch.zeros(
-            [input_tensor.size(0), input_tensor.size(1), self.config.future_seq_len],
+            [input_tensor.size(0), input_tensor.size(1), self.args.seq_len_out],
             dtype=input_tensor.dtype,
             device=input_tensor.device,
-        )
-
-    def __repr__(self) -> str:
-        return (
-            f'DLinear(history_seq_len={self.config.history_seq_len}, '
-            f'future_seq_len={self.config.future_seq_len}, '
-            f'num_nodes={self.config.num_nodes}, '
-            f'individual={self.config.individual}, '
-            f'kernel_size={self.config.kernel_size})'
         )
