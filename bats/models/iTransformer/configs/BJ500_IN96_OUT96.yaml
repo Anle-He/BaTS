@@ -1,6 +1,6 @@
 # --------- General Configs ---------
 GENERAL:
-  runner: 'LTSFRunner'
+  runner: 'LTSFTrainer'
   batch_size: 32
   max_epochs: 20
   early_stop_patience: 5
@@ -27,12 +27,12 @@ OPTIM:
 
 # --------- Model Configs ---------
 MODEL_PARAM:
-  history_seq_len: 96
-  future_seq_len: 96
+  seq_len_in: 96
+  seq_len_out: 96
   d_model: 512
   d_ff: 512
   dropout: 0.1
   e_layers: 3
   use_norm: False
   activation: 'gelu'
-  n_heads: 8
+  num_heads: 8
