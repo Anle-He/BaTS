@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 
 
 class RevIN(nn.Module):
@@ -69,21 +70,19 @@ class RevIN(nn.Module):
         return x
 
 
-class DataEmbedding(nn.Module):
+class SeriesEmbedding(nn.Module):
     def __init__(self, history_seq_len, d_model, dropout):
         super().__init__()
 
-        self.ValueEmb = nn.Linear(history_seq_len, d_model)
-        self.Dropout = nn.Dropout(p=dropout)
+        self.FeatureEmb = nn.Linear(history_seq_len, d_model)
+        self.Dropout = nn.Dropout(dropout)
 
     def forward(self, x_in):
-        # x_in: (batch_size, history_seq_len <-> num_channels)
+        # x_in: [batch_size, history_seq_len <-> num_channels]
         x_in = x_in.permute(0, 2, 1)
 
-        x_emb = self.ValueEmb(x_in)  # x_emb: (batch_size, num_channels, d_model)
-        x_emb = self.Dropout(x_emb)
-
-        return x_emb
+        # [batch_size, num_channels, d_model]
+        return self.Dropout(self.FeatureEmb(x_in))
 
 
 class Temporal_Decomposition(nn.Module):
@@ -135,16 +134,16 @@ class MultiScaleTrendMixing(nn.Module):
         self.up_sampling = nn.ModuleList([
             nn.Sequential(
                 nn.Linear(
-                    self.history_seq_len // (self.ds_window ** (l + 1)),
-                    self.history_seq_len // (self.ds_window ** (l)),
+                    self.history_seq_len // (self.ds_window ** (layer + 1)),
+                    self.history_seq_len // (self.ds_window ** (layer)),
                 ),
                 nn.GELU(),
                 nn.Linear(
-                    self.history_seq_len // (self.ds_window ** (l)),
-                    self.history_seq_len // (self.ds_window ** (l)),
+                    self.history_seq_len // (self.ds_window ** (layer)),
+                    self.history_seq_len // (self.ds_window ** (layer)),
                 ),
             )
-            for _ in reversed(range(self.ds_layers))
+            for layer in reversed(range(self.ds_layers))
         ])
 
     def forward(self, ms_trend_list):
@@ -175,7 +174,7 @@ class MultiScaleTrendMixing(nn.Module):
         out_trend_list.reverse()
 
         out_list = []
-        for out_trend, length in zip(out_trend_list, length_list):
+        for out_trend, length in zip(out_trend_list, length_list, strict=True):
             out_list.append(
                 out_trend[:, :length, :]
             )  # list of each element in [B, t, C]

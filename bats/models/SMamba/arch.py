@@ -102,6 +102,6 @@ class SMamba(nn.Module):
                 means[:, 0, :].unsqueeze(1).repeat(1, self.config.seq_len_out, 1)
             )
 
-        prediction = dec_out.unsqueeze(-1)
+        y = dec_out.unsqueeze(-1)
 
-        return prediction
+        return y

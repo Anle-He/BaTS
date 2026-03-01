@@ -1,0 +1,6 @@
+# --------- General Configs ---------
+GENERAL:
+  runner: 'LTSFTrainer'
+  batch_size: 32
+  max_epochs: 20
+  early_stop_patience: 5

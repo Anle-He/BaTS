@@ -1,15 +1,19 @@
+from .CAM import CAM
 from .CycleNet import CycleNet
 from .DLinear import DLinear
-from .EMAformer import EMAformer
+from .DSTMamba import DSTMamba
 from .iTransformer import iTransformer
 from .SMamba import SMamba
+from .STID import STID
 
 _MODEL_REGISTRY = {
+    'CAM': CAM,
     'CycleNet': CycleNet,
     'DLinear': DLinear,
-    'EMAformer': EMAformer,
+    'DSTMamba': DSTMamba,
     'iTransformer': iTransformer,
     'SMamba': SMamba,
+    'STID': STID,
 }
 
 

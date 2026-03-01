@@ -1,0 +1,33 @@
+# --------- General Configs ---------
+GENERAL:
+  runner: 'LTSFTrainer'
+  batch_size: 32   
+  max_epochs: 20 
+  early_stop_patience: 5
+
+
+# --------- Data Configs ---------
+DATA:
+  in_steps: 96
+  out_steps: 12
+  x_time_of_day: True
+  x_day_of_week: True
+  y_time_of_day: False
+  y_day_of_week: False
+
+
+# --------- Training Configs ---------
+OPTIM:
+  loss: 'MSE'
+  initial_lr: 0.001
+  lr_scheduler_type: 'ExponentialLR'
+  lr_scheduler_gamma: 0.5 
+
+
+# --------- Model Configs ---------
+MODEL_PARAM:
+  seq_len_in: 96
+  seq_len_out: 12
+  num_nodes: 358
+  embed_dim: 32
+  e_layers: 3
