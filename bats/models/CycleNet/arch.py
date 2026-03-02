@@ -1,56 +1,65 @@
+from typing import Any
+from dataclasses import dataclass
+
 import torch
 import torch.nn as nn
 
 from .modules import RecurrentCycle
 
 
+@dataclass
+class CycleNetArgs:
+    seq_len_in: int
+    seq_len_out: int
+    num_nodes: int
+    cycle_len: int
+    cycle_pattern: str
+    d_model: int
+    add_norm: bool
+    model_type: str
+
+
 class CycleNet(nn.Module):
-    def __init__(self, **model_args):
+    def __init__(self, **model_args: Any) -> None:
         super().__init__()
 
-        self.history_seq_len = model_args['history_seq_len']
-        self.future_seq_len = model_args['future_seq_len']
+        self.args = CycleNetArgs(**model_args)
+        self._build()
 
-        self.num_nodes = model_args['num_nodes']
-        self.cycle_len = model_args['cycle_len']
-        self.d_model = model_args['d_model']
-        self.use_revin = model_args['use_revin']
-
-        self.model_type = model_args['model_type']
-        self.cycle_pattern = model_args['cycle_pattern']
+    def _build(self) -> None:
 
         self.cycleQueue = RecurrentCycle(
-            cycle_len=self.cycle_len, channel_size=self.num_channels
+            cycle_len=self.args.cycle_len, channel_size=self.args.num_nodes
         )
 
-        assert self.model_type in ['linear', 'mlp']
-        if self.model_type == 'linear':
-            self.model = nn.Linear(self.history_seq_len, self.future_seq_len)
-        elif self.model_type == 'mlp':
+        assert self.args.model_type in ['linear', 'mlp']
+        if self.args.model_type == 'linear':
+            self.model = nn.Linear(self.args.seq_len_in, self.args.seq_len_out)
+        elif self.args.model_type == 'mlp':
             self.model = nn.Sequential(
-                nn.Linear(self.history_seq_len, self.d_model),
+                nn.Linear(self.args.seq_len_in, self.args.d_model),
                 nn.ReLU(),
-                nn.Linear(self.d_model, self.future_seq_len),
+                nn.Linear(self.args.d_model, self.args.seq_len_out),
             )
 
     def forward(self, history_data: torch.Tensor) -> torch.Tensor:
-        x = history_data[..., 0]  # Only use the target feature.
+
+        x = history_data[..., 0]
 
         if self.cycle_pattern == 'daily':
-            cycle_index = history_data[..., 1] * self.cycle_len  # [B]
+            cycle_index = history_data[..., 1] * self.args.cycle_len  # [B]
             cycle_index = cycle_index[
                 :, -1, 0
             ]  # from CycleNet data_loader.py: "cycle_index = torch.tensor(self.cycle_index[s_end])"
         elif self.cycle_pattern == 'daily&weekly':
             cycle_index = (
-                history_data[..., 1] * self.cycle_len * 7 + history_data[..., 2] * 7
+                history_data[..., 1] * self.args.cycle_len * 7 + history_data[..., 2] * 7
             )
             cycle_index = cycle_index[:, -1, 0]
         else:
             raise Exception('please specify cycle pattern, daily OR weekly OR others')
 
-        # instance norm
-        if self.use_revin:
+        if self.args.add_norm:
             seq_mean = torch.mean(x, dim=1, keepdim=True)
             seq_var = torch.var(x, dim=1, keepdim=True) + 1e-5
             x = (x - seq_mean) / torch.sqrt(seq_var)
@@ -63,11 +72,11 @@ class CycleNet(nn.Module):
 
         # add back the cycle of the output data
         y = y + self.cycleQueue(
-            (cycle_index + self.history_seq_len) % self.cycle_len, self.future_seq_len
+            (cycle_index + self.args.seq_len_in) % self.args.cycle_len, self.args.seq_len_out
         )
 
         # instance denorm
-        if self.use_revin:
+        if self.args.add_norm:
             y = y * torch.sqrt(seq_var) + seq_mean
 
         return y.unsqueeze(-1)

@@ -53,6 +53,7 @@ class GraphConv(nn.Module):
 class MixProp(nn.Module):
     def __init__(self, c_in: int, c_out: int, gdep: int, dropout: float, alpha: float):
         super().__init__()
+
         self.graph_conv = GraphConv()
         self.mlp = nn.Conv2d((gdep + 1) * c_in, c_out, kernel_size=1)
         self.gdep = gdep
