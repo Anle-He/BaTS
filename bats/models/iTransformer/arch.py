@@ -14,7 +14,7 @@ from .modules import (
 
 
 @dataclass
-class iTransformerConfig:
+class iTransformerArgs:
     seq_len_in: int
     seq_len_out: int
     d_model: int
@@ -30,7 +30,7 @@ class iTransformer(nn.Module):
     def __init__(self, **model_args: Any) -> None:
         super().__init__()
 
-        self.args = iTransformerConfig(**model_args)
+        self.args = iTransformerArgs(**model_args)
         self._build()
 
     def _build(self) -> None:

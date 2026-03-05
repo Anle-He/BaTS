@@ -130,7 +130,7 @@ class CAM(nn.Module):
             )
             cycle_index = cycle_index[:, -1, 0]
         else:
-            raise ValueError(f"Unsupported cycle pattern: {self.args.cycle_pattern}")
+            raise ValueError(f'Unsupported cycle pattern: {self.args.cycle_pattern}')
 
         gather_idx = (
             cycle_index.view(-1, 1)

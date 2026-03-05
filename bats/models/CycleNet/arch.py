@@ -53,7 +53,8 @@ class CycleNet(nn.Module):
             ]  # from CycleNet data_loader.py: "cycle_index = torch.tensor(self.cycle_index[s_end])"
         elif self.cycle_pattern == 'daily&weekly':
             cycle_index = (
-                history_data[..., 1] * self.args.cycle_len * 7 + history_data[..., 2] * 7
+                history_data[..., 1] * self.args.cycle_len * 7
+                + history_data[..., 2] * 7
             )
             cycle_index = cycle_index[:, -1, 0]
         else:
@@ -72,7 +73,8 @@ class CycleNet(nn.Module):
 
         # add back the cycle of the output data
         y = y + self.cycleQueue(
-            (cycle_index + self.args.seq_len_in) % self.args.cycle_len, self.args.seq_len_out
+            (cycle_index + self.args.seq_len_in) % self.args.cycle_len,
+            self.args.seq_len_out,
         )
 
         # instance denorm

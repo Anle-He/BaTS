@@ -18,7 +18,7 @@ class SeriesEmbedding(nn.Module):
 
 
 class Encoder(nn.Module):
-    def __init__(self, ssm_layers, norm=None):
+    def __init__(self, ssm_layers, norm):
         super().__init__()
 
         self.ssm_layers = nn.ModuleList(ssm_layers)
@@ -31,10 +31,7 @@ class Encoder(nn.Module):
         for ssm_layer in self.ssm_layers:
             x_enc = ssm_layer(x_enc)
 
-        if self.norm is not None:
-            return self.norm(x_enc)
-        else:
-            return x_enc
+        return self.norm(x_enc)
 
 
 class EncoderLayer(nn.Module):

@@ -164,23 +164,19 @@ class MTGNN(nn.Module):
 
                 if self.args.seq_len_in > self.receptive_field:
                     self.norm.append(
-                        LayerNorm(
-                            (
-                                self.args.residual_channels,
-                                self.args.num_nodes,
-                                self.args.seq_len_in - rf_size_j + 1,
-                            )
-                        )
+                        LayerNorm((
+                            self.args.residual_channels,
+                            self.args.num_nodes,
+                            self.args.seq_len_in - rf_size_j + 1,
+                        ))
                     )
                 else:
                     self.norm.append(
-                        LayerNorm(
-                            (
-                                self.args.residual_channels,
-                                self.args.num_nodes,
-                                self.receptive_field - rf_size_j + 1,
-                            )
-                        )
+                        LayerNorm((
+                            self.args.residual_channels,
+                            self.args.num_nodes,
+                            self.receptive_field - rf_size_j + 1,
+                        ))
                     )
 
                 new_dilation *= self.args.dilation_exponential
@@ -233,9 +229,7 @@ class MTGNN(nn.Module):
         seq_len = x_in.size(3)
 
         if seq_len < self.receptive_field:
-            x_in = nn.functional.pad(
-                x_in, (self.receptive_field - seq_len, 0, 0, 0)
-            )
+            x_in = nn.functional.pad(x_in, (self.receptive_field - seq_len, 0, 0, 0))
 
         adp = self.gc(self.idx)
         x_enc = self.start_conv(x_in)

@@ -14,8 +14,7 @@ MODEL_PARAM:
   d_state: 32
   d_conv: 2
   expand: 1
-  emb_dropout: 0.1
-  ffn_dropout: 0.1
+  dropout: 0.1
   d_ff: 512
   e_layers: 2
   use_norm: False
